@@ -5,8 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 
-from app.agents.question_agent import generate_next_question
-from app.agents.evaluator_agent import evaluate_answer
+from app.agents.question_agent import generate_next_question, generate_batch_questions
+from app.agents.evaluator_agent import evaluate_answer, generate_in_depth_explanation
 from app.agents.followup_agent import generate_followup
 from app.agents.summary_agent import generate_final_report
 
@@ -34,6 +34,12 @@ class StartSessionRequest(BaseModel):
     previous_questions: List[str] = []
     evaluations: List[Dict[str, Any]] = []
 
+class GenerateBatchQuestionsRequest(BaseModel):
+    role: str
+    tech_stack: str
+    experience_level: str
+    max_questions: int = 5
+
 class EvaluateAnswerRequest(BaseModel):
     role: str
     tech_stack: str
@@ -43,6 +49,13 @@ class EvaluateAnswerRequest(BaseModel):
     question_text: str
     candidate_response: str
     evaluations_so_far: List[Dict[str, Any]] = []
+
+class ExplainRequest(BaseModel):
+    topic: Optional[str] = ""
+    question_text: str
+    ideal_answer: Optional[str] = ""
+    candidate_response: Optional[str] = ""
+    tech_stack: Optional[str] = ""
 
 class FinalReportRequest(BaseModel):
     role: str
@@ -73,6 +86,20 @@ def api_generate_question(req: StartSessionRequest):
             previous_questions_list=req.previous_questions
         )
         return {"status": "success", "question": q_data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/ai/generate-questions-batch")
+def api_generate_questions_batch(req: GenerateBatchQuestionsRequest):
+    """Generates all N unique technical questions up front for a session."""
+    try:
+        questions = generate_batch_questions(
+            role=req.role,
+            tech_stack=req.tech_stack,
+            experience_level=req.experience_level,
+            max_questions=req.max_questions
+        )
+        return {"status": "success", "questions": questions}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -107,6 +134,21 @@ def api_evaluate_answer(req: EvaluateAnswerRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/ai/explain")
+def api_explain_concept(req: ExplainRequest):
+    """Generates an in-depth explanation on-demand to save tokens."""
+    try:
+        explanation = generate_in_depth_explanation(
+            topic=req.topic,
+            question_text=req.question_text,
+            ideal_answer=req.ideal_answer,
+            candidate_response=req.candidate_response,
+            tech_stack=req.tech_stack
+        )
+        return {"status": "success", "in_depth_explanation": explanation}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/ai/final-report")
 def api_generate_final_report(req: FinalReportRequest):
     """Compiles overall candidate report and roadmap."""
@@ -123,3 +165,4 @@ def api_generate_final_report(req: FinalReportRequest):
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+

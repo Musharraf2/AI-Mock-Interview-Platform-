@@ -42,31 +42,50 @@ public class InterviewSessionService {
         );
         session = sessionRepository.save(session);
 
-        // Call AI Service to generate Question 1
-        Map<String, Object> aiResponse = aiServiceClient.generateNextQuestion(
+        // Call AI Service to generate ALL N questions dynamically in batch
+        Map<String, Object> aiResponse = aiServiceClient.generateBatchQuestions(
                 session.getRole(),
                 session.getTechStack(),
                 session.getExperienceLevel(),
-                1,
-                session.getMaxQuestions(),
-                Collections.emptyList()
+                session.getMaxQuestions()
         );
 
-        Map<String, Object> qMap = (Map<String, Object>) aiResponse.get("question");
+        List<Map<String, Object>> qList = (List<Map<String, Object>>) aiResponse.get("questions");
+        InterviewQuestion firstQuestion = null;
 
-        InterviewQuestion question = new InterviewQuestion(
-                session.getId(),
-                1,
-                (String) qMap.getOrDefault("topic", "General Technical"),
-                (String) qMap.getOrDefault("question_text", "Explain core concepts of your tech stack."),
-                (String) qMap.getOrDefault("focus_area", "Fundamentals"),
-                false
-        );
-        question = questionRepository.save(question);
+        if (qList != null && !qList.isEmpty()) {
+            for (Map<String, Object> qMap : qList) {
+                Number qNum = (Number) qMap.getOrDefault("question_number", 1);
+                InterviewQuestion question = new InterviewQuestion(
+                        session.getId(),
+                        qNum.intValue(),
+                        (String) qMap.getOrDefault("topic", "General Technical"),
+                        (String) qMap.getOrDefault("question_text", "Explain core concepts of your tech stack."),
+                        (String) qMap.getOrDefault("focus_area", "Fundamentals"),
+                        false
+                );
+                question = questionRepository.save(question);
+                if (firstQuestion == null) {
+                    firstQuestion = question;
+                }
+            }
+        }
+
+        if (firstQuestion == null) {
+            firstQuestion = new InterviewQuestion(
+                    session.getId(),
+                    1,
+                    session.getTechStack() + " Fundamentals",
+                    "Explain the core architectural concepts and best practices of " + session.getTechStack() + ".",
+                    "Architecture",
+                    false
+            );
+            firstQuestion = questionRepository.save(firstQuestion);
+        }
 
         Map<String, Object> result = new HashMap<>();
         result.put("session", session);
-        result.put("current_question", question);
+        result.put("current_question", firstQuestion);
         return result;
     }
 
@@ -140,36 +159,31 @@ public class InterviewSessionService {
             session.setCurrentQuestionNumber(nextQNum);
             sessionRepository.save(session);
 
-            List<InterviewQuestion> prevQuestions = questionRepository.findBySessionIdOrderByQuestionNumberAsc(session.getId());
-            List<Map<String, Object>> prevQList = new ArrayList<>();
-            for (InterviewQuestion q : prevQuestions) {
-                Map<String, Object> m = new HashMap<>();
-                m.put("question_number", q.getQuestionNumber());
-                m.put("question_text", q.getQuestionText());
-                m.put("topic", q.getTopic());
-                prevQList.add(m);
+            Optional<InterviewQuestion> nextQuestionOpt = questionRepository.findBySessionIdAndQuestionNumber(session.getId(), nextQNum);
+            InterviewQuestion nextQuestion = null;
+
+            if (nextQuestionOpt.isPresent()) {
+                nextQuestion = nextQuestionOpt.get();
+            } else {
+                Map<String, Object> nextQResponse = aiServiceClient.generateNextQuestion(
+                        session.getRole(),
+                        session.getTechStack(),
+                        session.getExperienceLevel(),
+                        nextQNum,
+                        session.getMaxQuestions(),
+                        Collections.emptyList()
+                );
+                Map<String, Object> nextQMap = (Map<String, Object>) nextQResponse.get("question");
+                nextQuestion = new InterviewQuestion(
+                        session.getId(),
+                        nextQNum,
+                        (String) nextQMap.getOrDefault("topic", "Technical Focus"),
+                        (String) nextQMap.getOrDefault("question_text", "Describe your approach to problem solving."),
+                        (String) nextQMap.getOrDefault("focus_area", "Technical Depth"),
+                        false
+                );
+                nextQuestion = questionRepository.save(nextQuestion);
             }
-
-            Map<String, Object> nextQResponse = aiServiceClient.generateNextQuestion(
-                    session.getRole(),
-                    session.getTechStack(),
-                    session.getExperienceLevel(),
-                    nextQNum,
-                    session.getMaxQuestions(),
-                    prevQList
-            );
-
-            Map<String, Object> nextQMap = (Map<String, Object>) nextQResponse.get("question");
-
-            InterviewQuestion nextQuestion = new InterviewQuestion(
-                    session.getId(),
-                    nextQNum,
-                    (String) nextQMap.getOrDefault("topic", "Technical Focus"),
-                    (String) nextQMap.getOrDefault("question_text", "Describe your approach to problem solving."),
-                    (String) nextQMap.getOrDefault("focus_area", "Technical Depth"),
-                    false
-            );
-            nextQuestion = questionRepository.save(nextQuestion);
 
             result.put("is_complete", false);
             result.put("next_question", nextQuestion);

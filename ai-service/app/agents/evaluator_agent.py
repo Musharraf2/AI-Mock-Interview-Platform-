@@ -21,7 +21,6 @@ CRITICAL RULE ON COPY-PASTE & INVALID ANSWERS:
   Set improvements to ["Provide a concrete technical explanation instead of repeating the question"].
   Set feedback_summary to "No actual technical answer provided. You pasted the question text back or submitted an incomplete response."
   Set ideal_answer to provide the exact reference model solution for this question.
-  Set in_depth_explanation to provide a thorough, expanded technical deep-dive explaining the concept step-by-step.
 
 Otherwise, evaluate the candidate's technical response constructively and accurately:
 1. Technical Accuracy (0-10)
@@ -30,7 +29,6 @@ Otherwise, evaluate the candidate's technical response constructively and accura
 4. Key technical strengths shown
 5. Missing details, edge cases, or errors
 6. Provide the IDEAL REFERENCE ANSWER (ideal_answer): A high-caliber 10/10 model response to this question.
-7. Provide an IN-DEPTH EXPANDED EXPLANATION (in_depth_explanation): A comprehensive, deep-dive explanation with architectural principles, code patterns, and production trade-offs for candidates needing deep clarity.
 
 Reply ONLY with a raw JSON object matching this structure (no markdown fences, no extra text):
 {{
@@ -44,10 +42,26 @@ Reply ONLY with a raw JSON object matching this structure (no markdown fences, n
   "improvements": ["Did not address edge case handling"],
   "feedback_summary": "Solid explanation demonstrated. Elaborate on edge case handling to improve.",
   "ideal_answer": "<The 10/10 ideal reference answer to this question>",
-  "in_depth_explanation": "<A detailed, expanded technical deep dive explaining the concept step-by-step with code patterns and production trade-offs>",
   "needs_followup": false,
   "followup_reason": "Candidate covered main technical points."
 }}
+"""
+
+EXPLAIN_PROMPT = """You are a Principal Software Engineer providing an in-depth, educational deep-dive explanation for a technical interview question.
+
+Question Topic: {topic}
+Question Asked: "{question_text}"
+Ideal Reference Answer: "{ideal_answer}"
+Candidate's Response: "{candidate_response}"
+Tech Stack: {tech_stack}
+
+Provide a comprehensive, expanded deep-dive explanation for candidates who want to master this topic thoroughly.
+Include:
+1. Core Technical Fundamentals & Principles
+2. Architectural Design Patterns & Code Best Practices
+3. Edge Cases, Failure Modes & Performance Optimization Strategies
+
+Format your response cleanly using Markdown headings (###) and bullet points. Keep it clear, professional, and directly actionable.
 """
 
 def is_copied_or_invalid_answer(question_text: str, candidate_response: str) -> bool:
@@ -70,7 +84,6 @@ def is_copied_or_invalid_answer(question_text: str, candidate_response: str) -> 
     overlap_count = sum(1 for w in resp_words if w in q_words)
     overlap_ratio = overlap_count / float(len(resp_words))
     
-    # If over 70% of candidate's words are copied directly from the question text
     if overlap_ratio > 0.70 and len(resp_words) <= len(q_words) + 4:
         return True
         
@@ -86,8 +99,6 @@ def evaluate_answer(
 ) -> Dict[str, Any]:
     ideal_fallback = f"An ideal answer for '{question_text}' should define the core principles of {topic}, explain architectural trade-offs, describe concrete design patterns, and address concurrency/performance considerations."
     
-    in_depth_fallback = f"### 📘 Deep Dive: {topic}\n\n1. **Core Architectural Concept**:\nTo answer '{question_text}' at a senior level, begin by establishing key definitions and core responsibilities.\n\n2. **Production Code & Design Patterns**:\nUse clear separation of concerns, explicit component interfaces, and clean dependency injection or event-driven models.\n\n3. **Edge Cases & Scalability**:\nAddress transaction isolation levels, connection pooling, cache invalidation, and failure isolation under heavy concurrent load."
-
     # Pre-validation check for copy-paste or empty answers
     if is_copied_or_invalid_answer(question_text, candidate_response):
         return {
@@ -101,7 +112,6 @@ def evaluate_answer(
             "improvements": ["Provide an actual technical explanation instead of repeating the question text"],
             "feedback_summary": "No actual technical answer provided. You pasted the question text back or submitted an incomplete response.",
             "ideal_answer": ideal_fallback,
-            "in_depth_explanation": in_depth_fallback,
             "needs_followup": False,
             "followup_reason": "No valid response to evaluate."
         }
@@ -131,8 +141,6 @@ def evaluate_answer(
         parsed = json.loads(content)
         if "ideal_answer" not in parsed:
             parsed["ideal_answer"] = ideal_fallback
-        if "in_depth_explanation" not in parsed:
-            parsed["in_depth_explanation"] = in_depth_fallback
         return parsed
     except Exception as e:
         return {
@@ -144,11 +152,37 @@ def evaluate_answer(
             "overall_question_score": 7.0,
             "strengths": ["Answer submitted and analyzed"],
             "improvements": ["Provide deeper architectural design trade-offs and code examples"],
-            "feedback_summary": "Response recorded. Review the reference solution and expanded deep-dive explanation below.",
+            "feedback_summary": "Response recorded. Review the reference solution below.",
             "ideal_answer": ideal_fallback,
-            "in_depth_explanation": in_depth_fallback,
             "needs_followup": False,
             "followup_reason": "Standard response evaluated.",
             "fallback": True,
             "error": str(e)
         }
+
+def generate_in_depth_explanation(
+    topic: str,
+    question_text: str,
+    ideal_answer: str = "",
+    candidate_response: str = "",
+    tech_stack: str = ""
+) -> str:
+    llm = get_llm(temperature=0.4)
+    
+    prompt = EXPLAIN_PROMPT.format(
+        topic=topic or "Technical Fundamentals",
+        question_text=question_text or "",
+        ideal_answer=ideal_answer or "N/A",
+        candidate_response=candidate_response or "N/A",
+        tech_stack=tech_stack or "General Software Development"
+    )
+    
+    try:
+        response = llm.invoke([
+            SystemMessage(content="You are a principal technical educator. Provide clear, in-depth markdown explanations."),
+            HumanMessage(content=prompt)
+        ])
+        return response.content.strip()
+    except Exception as e:
+        return f"### 📘 Deep Dive: {topic}\n\n1. **Core Architectural Concept**:\nTo answer '{question_text}' at a senior level, begin by establishing key definitions and core responsibilities.\n\n2. **Production Code & Design Patterns**:\nUse clear separation of concerns, explicit component interfaces, and clean dependency injection or event-driven models.\n\n3. **Edge Cases & Scalability**:\nAddress transaction isolation levels, connection pooling, cache invalidation, and failure isolation under heavy concurrent load."
+

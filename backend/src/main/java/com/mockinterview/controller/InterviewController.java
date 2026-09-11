@@ -23,6 +23,9 @@ public class InterviewController {
     private InterviewSessionService interviewService;
 
     @Autowired
+    private com.mockinterview.service.AIServiceClient aiServiceClient;
+
+    @Autowired
     private AuthService authService;
 
     @PostMapping("/start")
@@ -39,6 +42,17 @@ public class InterviewController {
             @Valid @RequestBody SubmitAnswerRequest request) {
         User user = authService.getUserByEmail(authentication.getName());
         return ResponseEntity.ok(interviewService.submitAnswer(user.getId(), request));
+    }
+
+    @PostMapping("/explain")
+    public ResponseEntity<Map<String, Object>> explainConcept(@RequestBody Map<String, Object> payload) {
+        String topic = (String) payload.getOrDefault("topic", "");
+        String questionText = (String) payload.getOrDefault("questionText", "");
+        String idealAnswer = (String) payload.getOrDefault("idealAnswer", "");
+        String candidateAnswer = (String) payload.getOrDefault("candidateAnswer", "");
+        String techStack = (String) payload.getOrDefault("techStack", "");
+
+        return ResponseEntity.ok(aiServiceClient.generateInDepthExplanation(topic, questionText, idealAnswer, candidateAnswer, techStack));
     }
 
     @GetMapping("/my-sessions")

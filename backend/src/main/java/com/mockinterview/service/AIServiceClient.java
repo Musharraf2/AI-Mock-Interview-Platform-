@@ -175,6 +175,95 @@ public class AIServiceClient {
         }
     }
 
+    public Map<String, Object> generateBatchQuestions(String role, String techStack, String experienceLevel, int maxQuestions) {
+        String url = aiServiceUrl + "/api/ai/generate-questions-batch";
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("role", role);
+        body.put("tech_stack", techStack);
+        body.put("experience_level", experienceLevel);
+        body.put("max_questions", maxQuestions);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+
+        try {
+            return restTemplate.postForObject(url, request, Map.class);
+        } catch (Exception e) {
+            String firstTech = techStack.split(",")[0].trim();
+            Map<String, Object> fallback = new HashMap<>();
+            List<Map<String, Object>> qList = new java.util.ArrayList<>();
+            for (int i = 1; i <= maxQuestions; i++) {
+                Map<String, Object> q = new HashMap<>();
+                q.put("question_number", i);
+                switch (i) {
+                    case 1:
+                        q.put("topic", firstTech + " Core Architecture");
+                        q.put("question_text", "In " + firstTech + ", how do you design components for high cohesion and low coupling? Can you walk through a production code example?");
+                        q.put("focus_area", "Architecture & Clean Code");
+                        break;
+                    case 2:
+                        q.put("topic", "Database Optimization & SQL Performance");
+                        q.put("question_text", "When working with databases in a " + role + " application, how do you identify slow queries and design composite indices to optimize performance?");
+                        q.put("focus_area", "Database Indexing & Query Tuning");
+                        break;
+                    case 3:
+                        q.put("topic", "API Security & Authentication");
+                        q.put("question_text", "How do you secure REST API endpoints in " + firstTech + " against SQL injection, XSS, and unauthorized token tampering?");
+                        q.put("focus_area", "Security & Authorization");
+                        break;
+                    case 4:
+                        q.put("topic", "Concurrency & Thread Safety");
+                        q.put("question_text", "How do you manage concurrent request processing, race conditions, or async tasks in " + firstTech + " under heavy load?");
+                        q.put("focus_area", "Multithreading & Concurrency");
+                        break;
+                    default:
+                        q.put("topic", "System Resilience & Production Monitoring");
+                        q.put("question_text", "What exception handling, logging, and circuit breaker patterns do you implement in " + firstTech + " to handle third-party service degradation?");
+                        q.put("focus_area", "System Reliability & Fault Tolerance");
+                        break;
+                }
+                q.put("difficulty", "Medium");
+                qList.add(q);
+            }
+            fallback.put("status", "success_fallback");
+            fallback.put("questions", qList);
+            return fallback;
+        }
+    }
+
+    public Map<String, Object> generateInDepthExplanation(String topic, String questionText, String idealAnswer, String candidateAnswer, String techStack) {
+        String url = aiServiceUrl + "/api/ai/explain";
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("topic", topic);
+        body.put("question_text", questionText);
+        body.put("ideal_answer", idealAnswer);
+        body.put("candidate_response", candidateAnswer);
+        body.put("tech_stack", techStack);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+
+        try {
+            return restTemplate.postForObject(url, request, Map.class);
+        } catch (Exception e) {
+            String firstTech = techStack != null ? techStack.split(",")[0].trim() : "Software";
+            Map<String, Object> fallback = new HashMap<>();
+            String inDepthExpl = "### 📘 In-Depth Technical Deep Dive: " + topic + "\n\n" +
+                    "1. **Core Architectural Concept**:\nTo answer '" + questionText + "' at a senior level, begin with a clear definition and explain why this design pattern or paradigm is used in " + firstTech + ".\n\n" +
+                    "2. **Production Best Practices**:\n- Use clean component separation and explicit interfaces.\n- Ensure thread safety, connection pooling, and proper resource cleanup under load.\n\n" +
+                    "3. **Edge Case Handling & Performance**:\nAlways address fault isolation, retry policies, and database transaction boundaries.";
+            fallback.put("status", "success_fallback");
+            fallback.put("in_depth_explanation", inDepthExpl);
+            return fallback;
+        }
+    }
+
     public Map<String, Object> generateFinalReport(String role, String techStack, String experienceLevel, List<Map<String, Object>> evaluations) {
         String url = aiServiceUrl + "/api/ai/final-report";
 

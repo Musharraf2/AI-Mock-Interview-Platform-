@@ -122,5 +122,76 @@ def generate_next_question(
             "focus_area": fallback_item["focus_area"],
             "difficulty": "Medium",
             "fallback": True,
-            "error": str(e)
-        }
+BATCH_QUESTION_PROMPT = """You are an expert Senior Technical Interviewer conducting a mock technical interview.
+Target Role: {role}
+Tech Stack / Topics: {tech_stack}
+Experience Level: {experience_level}
+Total Questions to Generate: {max_questions}
+
+CRITICAL RULES FOR BATCH QUESTION GENERATION:
+1. Generate EXACTLY {max_questions} distinct, highly relevant technical interview questions for {role} focusing on {tech_stack}.
+2. ABSOLUTELY NO DUPLICATES: Each question MUST cover a COMPLETELY DIFFERENT topic, architecture pattern, database optimization, concurrency/state model, API security mechanism, or resilience pattern.
+3. DIFFICULTY CALIBRATION: Calibrate question difficulty strictly for a {experience_level} candidate.
+
+You MUST reply ONLY with a raw JSON array of objects matching this structure (no markdown fences, no extra text):
+[
+  {{
+    "question_number": 1,
+    "topic": "<Specific Topic 1>",
+    "question_text": "<Clear technical interview question 1>",
+    "focus_area": "<Focus area>",
+    "difficulty": "<Easy | Medium | Hard>"
+  }},
+  ...
+]
+"""
+
+def generate_batch_questions(
+    role: str,
+    tech_stack: str,
+    experience_level: str,
+    max_questions: int = 5
+) -> List[Dict[str, Any]]:
+    llm = get_llm(temperature=0.7)
+    
+    prompt = BATCH_QUESTION_PROMPT.format(
+        role=role,
+        tech_stack=tech_stack,
+        experience_level=experience_level,
+        max_questions=max_questions
+    )
+    
+    try:
+        response = llm.invoke([
+            SystemMessage(content="You are an expert technical interviewer system that outputs raw JSON array only."),
+            HumanMessage(content=prompt)
+        ])
+        
+        content = response.content.strip()
+        content = re.sub(r"^```json\s*", "", content)
+        content = re.sub(r"^```\s*", "", content)
+        content = re.sub(r"\s*```$", "", content)
+        
+        parsed = json.loads(content)
+        if isinstance(parsed, list) and len(parsed) > 0:
+            for idx, q in enumerate(parsed, 1):
+                q["question_number"] = idx
+            return parsed
+    except Exception as e:
+        print(f"Error generating batch questions: {e}")
+        
+    questions = []
+    main_tech = tech_stack.split(',')[0].strip()
+    for i in range(1, max_questions + 1):
+        topic_idx = (i - 1) % len(FALLBACK_TOPICS)
+        fallback_item = FALLBACK_TOPICS[topic_idx]
+        questions.append({
+            "question_number": i,
+            "topic": fallback_item["topic"].replace("{tech_stack}", main_tech),
+            "question_text": fallback_item["question_text"].replace("{tech_stack}", main_tech).replace("{role}", role),
+            "focus_area": fallback_item["focus_area"],
+            "difficulty": "Medium",
+            "fallback": True
+        })
+    return questions
+

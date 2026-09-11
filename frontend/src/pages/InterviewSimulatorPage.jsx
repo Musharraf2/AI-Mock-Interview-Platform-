@@ -13,6 +13,37 @@ export default function InterviewSimulatorPage({ initialData, onComplete }) {
   const [lastEvaluation, setLastEvaluation] = useState(null);
   const [showEvaluationModal, setShowEvaluationModal] = useState(false);
   const [error, setError] = useState('');
+  const [loadingExplanation, setLoadingExplanation] = useState(false);
+
+  const handleToggleDeepDive = async () => {
+    if (!showDeepDive) {
+      if (!lastEvaluation?.in_depth_explanation) {
+        setLoadingExplanation(true);
+        try {
+          const res = await interviewApi.explainConcept({
+            topic: currentQuestion?.topic,
+            questionText: currentQuestion?.questionText,
+            idealAnswer: lastEvaluation?.ideal_answer,
+            candidateAnswer,
+            techStack: session?.techStack
+          });
+          const explanation = res.data?.in_depth_explanation || res.data?.explanation;
+          setLastEvaluation(prev => ({ ...prev, in_depth_explanation: explanation }));
+        } catch (err) {
+          console.error("Error fetching explanation:", err);
+          setLastEvaluation(prev => ({
+            ...prev,
+            in_depth_explanation: `### 📘 Detailed Concept Breakdown: ${currentQuestion?.topic || 'Technical Focus'}\n\n1. **Core Architectural Concept**:\nTo answer '${currentQuestion?.questionText}' at a senior level, establish clear definitions and modular boundaries.\n\n2. **Production Best Practices**:\nEnsure thread safety, connection pooling, and fault isolation under concurrent load.`
+          }));
+        } finally {
+          setLoadingExplanation(false);
+        }
+      }
+      setShowDeepDive(true);
+    } else {
+      setShowDeepDive(false);
+    }
+  };
 
   // Speech Recognition setup if browser supports it
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -418,47 +449,54 @@ export default function InterviewSimulatorPage({ initialData, onComplete }) {
                 )}
               </div>
 
-              {/* Deep Dive / In-Depth Explanation Expandable Option */}
-              {lastEvaluation.in_depth_explanation && (
-                <div style={{ marginBottom: '20px' }}>
-                  <button
-                    onClick={() => setShowDeepDive(!showDeepDive)}
-                    className="btn-secondary"
-                    style={{
-                      width: '100%',
-                      justify: 'space-between',
-                      padding: '12px 18px',
-                      background: 'rgba(99, 102, 241, 0.1)',
-                      borderColor: 'rgba(99, 102, 241, 0.3)',
-                      color: '#a5b4fc'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 }}>
-                      <BookOpen size={18} color="#818cf8" /> Explain In-Depth (Deep Dive)
-                    </div>
-                    {showDeepDive ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                  </button>
-
-                  {showDeepDive && (
-                    <div style={{
-                      marginTop: '12px',
-                      padding: '20px',
-                      background: 'rgba(15, 23, 42, 0.8)',
-                      border: '1px solid rgba(129, 140, 248, 0.3)',
-                      borderRadius: '12px',
-                      fontSize: '0.9rem',
-                      lineHeight: 1.65,
-                      color: 'var(--text-main)',
-                      whiteSpace: 'pre-wrap'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', color: '#818cf8', fontWeight: 800 }}>
-                        <HelpCircle size={18} /> Detailed Concept Breakdown & Best Practices
-                      </div>
-                      {lastEvaluation.in_depth_explanation}
-                    </div>
+              {/* Deep Dive / In-Depth Explanation Expandable Option (On-Demand Token Saver) */}
+              <div style={{ marginBottom: '20px' }}>
+                <button
+                  onClick={handleToggleDeepDive}
+                  disabled={loadingExplanation}
+                  className="btn-secondary"
+                  style={{
+                    width: '100%',
+                    justify: 'space-between',
+                    padding: '12px 18px',
+                    background: 'rgba(99, 102, 241, 0.1)',
+                    borderColor: 'rgba(99, 102, 241, 0.3)',
+                    color: '#a5b4fc',
+                    cursor: loadingExplanation ? 'wait' : 'pointer'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 }}>
+                    <BookOpen size={18} color="#818cf8" />
+                    {loadingExplanation ? 'Generating In-Depth Explanation with AI...' : 'Explain In-Depth (Deep Dive)'}
+                  </div>
+                  {loadingExplanation ? (
+                    <Sparkles size={18} className="animate-spin" color="#818cf8" />
+                  ) : showDeepDive ? (
+                    <ChevronUp size={18} />
+                  ) : (
+                    <ChevronDown size={18} />
                   )}
-                </div>
-              )}
+                </button>
+
+                {showDeepDive && lastEvaluation?.in_depth_explanation && (
+                  <div style={{
+                    marginTop: '12px',
+                    padding: '20px',
+                    background: 'rgba(15, 23, 42, 0.8)',
+                    border: '1px solid rgba(129, 140, 248, 0.3)',
+                    borderRadius: '12px',
+                    fontSize: '0.9rem',
+                    lineHeight: 1.65,
+                    color: 'var(--text-main)',
+                    whiteSpace: 'pre-wrap'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', color: '#818cf8', fontWeight: 800 }}>
+                      <HelpCircle size={18} /> Detailed Concept Breakdown & Best Practices
+                    </div>
+                    {lastEvaluation.in_depth_explanation}
+                  </div>
+                )}
+              </div>
             </div>
 
             <button
