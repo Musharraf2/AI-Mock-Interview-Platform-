@@ -10,24 +10,51 @@ Tech Stack / Skills: {tech_stack}
 Experience Level: {experience_level}
 Current Question Number: {question_number} of {max_questions}
 
-Previous Questions Asked:
+PREVIOUSLY ASKED QUESTIONS IN THIS SESSION:
 {previous_questions}
 
-Your goal:
-Generate the next realistic technical interview question.
-- Make it relevant to the candidate's role and tech stack.
-- Adapt difficulty according to the experience level ({experience_level}).
-- Ensure the question tests problem-solving, architectural awareness, or core technical concepts.
+CRITICAL RULES FOR QUESTION GENERATION:
+1. ABSOLUTELY NO DUPLICATES: Do NOT repeat, rephrase, or ask about the exact same topic as any of the previously asked questions listed above.
+2. TOPIC DIVERSITY: Focus on a COMPLETELY NEW technical concept, architectural design pattern, performance concern, database query tuning, security mechanism, or testing strategy relevant to {tech_stack}.
+3. DIFFICULTY CALIBRATION: Calibrate question difficulty strictly for a {experience_level} candidate.
 
-You MUST reply ONLY with a valid JSON object matching this structure (no markdown fences, no extra text):
+You MUST reply ONLY with a raw valid JSON object matching this structure (no markdown fences, no extra text):
 {{
   "question_number": {question_number},
-  "topic": "<Specific Topic, e.g. Spring Boot Dependency Injection, SQL Indexing>",
-  "question_text": "<The actual technical interview question>",
+  "topic": "<Specific Topic name, e.g. PostgreSQL Indexing & Query Execution Plans>",
+  "question_text": "<The actual unique technical interview question>",
   "focus_area": "<What key technical knowledge this question tests>",
   "difficulty": "<Easy | Medium | Hard>"
 }}
 """
+
+FALLBACK_TOPICS = [
+    {
+        "topic": "Core Fundamentals & Component Architecture",
+        "question_text": "In {tech_stack}, how do you design components for high cohesion and low coupling? Can you walk through a concrete production example?",
+        "focus_area": "Clean Architecture & Design Patterns"
+    },
+    {
+        "topic": "Database Indexing & Query Performance",
+        "question_text": "When building applications with {tech_stack}, how do you identify slow database queries, and what strategies (such as B-tree indices or composite keys) do you use to optimize query execution?",
+        "focus_area": "Database Optimization & SQL Tuning"
+    },
+    {
+        "topic": "Security & Authentication Management",
+        "question_text": "How do you secure REST APIs built in {tech_stack} against common vulnerabilities like SQL injection, XSS, and unauthorized token tampering?",
+        "focus_area": "API Security & Authorization"
+    },
+    {
+        "topic": "Concurrency, State & Event Handling",
+        "question_text": "How do you handle thread safety, race conditions, or asynchronous task execution in {tech_stack} under high concurrent traffic?",
+        "focus_area": "Multithreading & Concurrency"
+    },
+    {
+        "topic": "Production Monitoring & Failure Resilience",
+        "question_text": "What logging, exception handling, and circuit breaker or retry patterns do you implement in {tech_stack} to ensure system reliability during upstream failures?",
+        "focus_area": "Resilience & Reliability Engineering"
+    }
+]
 
 def generate_next_question(
     role: str,
@@ -35,16 +62,28 @@ def generate_next_question(
     experience_level: str,
     question_number: int,
     max_questions: int,
-    evaluations: List[Dict[str, Any]]
+    evaluations: List[Dict[str, Any]] = None,
+    previous_questions_list: List[str] = None
 ) -> Dict[str, Any]:
     llm = get_llm(temperature=0.7)
     
     prev_questions = []
-    for ev in evaluations:
-        if "question_text" in ev:
-            prev_questions.append(f"- Question {ev.get('question_number')}: {ev.get('question_text')}")
     
-    prev_q_str = "\n".join(prev_questions) if prev_questions else "None yet."
+    # Extract from passed previous questions list
+    if previous_questions_list:
+        for idx, q_txt in enumerate(previous_questions_list, 1):
+            if q_txt:
+                prev_questions.append(f"- Question {idx}: {q_txt}")
+                
+    # Extract from evaluations list
+    if evaluations:
+        for ev in evaluations:
+            q_txt = ev.get("question_text") or (ev.get("question") or {}).get("question_text")
+            q_num = ev.get("question_number", len(prev_questions) + 1)
+            if q_txt and f"- Question {q_num}: {q_txt}" not in prev_questions:
+                prev_questions.append(f"- Question {q_num}: {q_txt}")
+    
+    prev_q_str = "\n".join(prev_questions) if prev_questions else "None yet (This is Question 1)."
     
     prompt = QUESTION_PROMPT.format(
         role=role,
@@ -62,20 +101,25 @@ def generate_next_question(
         ])
         
         content = response.content.strip()
-        # Clean JSON markdown blocks if present
         content = re.sub(r"^```json\s*", "", content)
         content = re.sub(r"^```\s*", "", content)
         content = re.sub(r"\s*```$", "", content)
         
         parsed = json.loads(content)
+        parsed["question_number"] = question_number
         return parsed
     except Exception as e:
-        # Fallback question structure if LLM key is missing or formatting fails
+        # Dynamic topic fallback based on question_number
+        topic_idx = (question_number - 1) % len(FALLBACK_TOPICS)
+        fallback_item = FALLBACK_TOPICS[topic_idx]
+        
+        main_tech = tech_stack.split(',')[0].strip()
+        
         return {
             "question_number": question_number,
-            "topic": f"{tech_stack.split(',')[0]} Fundamentals",
-            "question_text": f"Can you explain the core architectural principles of {tech_stack.split(',')[0]} and how you handle state management or scalability for a {role} role?",
-            "focus_area": "Core Concepts & Architecture",
+            "topic": fallback_item["topic"].replace("{tech_stack}", main_tech),
+            "question_text": fallback_item["question_text"].replace("{tech_stack}", main_tech).replace("{role}", role),
+            "focus_area": fallback_item["focus_area"],
             "difficulty": "Medium",
             "fallback": True,
             "error": str(e)

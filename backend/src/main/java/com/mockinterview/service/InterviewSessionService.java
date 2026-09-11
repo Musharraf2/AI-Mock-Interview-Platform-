@@ -140,13 +140,23 @@ public class InterviewSessionService {
             session.setCurrentQuestionNumber(nextQNum);
             sessionRepository.save(session);
 
+            List<InterviewQuestion> prevQuestions = questionRepository.findBySessionIdOrderByQuestionNumberAsc(session.getId());
+            List<Map<String, Object>> prevQList = new ArrayList<>();
+            for (InterviewQuestion q : prevQuestions) {
+                Map<String, Object> m = new HashMap<>();
+                m.put("question_number", q.getQuestionNumber());
+                m.put("question_text", q.getQuestionText());
+                m.put("topic", q.getTopic());
+                prevQList.add(m);
+            }
+
             Map<String, Object> nextQResponse = aiServiceClient.generateNextQuestion(
                     session.getRole(),
                     session.getTechStack(),
                     session.getExperienceLevel(),
                     nextQNum,
                     session.getMaxQuestions(),
-                    Collections.emptyList()
+                    prevQList
             );
 
             Map<String, Object> nextQMap = (Map<String, Object>) nextQResponse.get("question");

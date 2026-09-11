@@ -31,6 +31,8 @@ public class AIServiceClient {
         body.put("tech_stack", techStack);
         body.put("experience_level", experienceLevel);
         body.put("max_questions", maxQuestions);
+        body.put("question_number", questionNumber);
+        body.put("evaluations", evaluations != null ? evaluations : List.of());
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -40,13 +42,39 @@ public class AIServiceClient {
         try {
             return restTemplate.postForObject(url, request, Map.class);
         } catch (Exception e) {
-            // Fallback response if AI service is offline during initial boot
+            String firstTech = techStack.split(",")[0].trim();
             Map<String, Object> fallback = new HashMap<>();
             Map<String, Object> q = new HashMap<>();
             q.put("question_number", questionNumber);
-            q.put("topic", techStack + " Core Principles");
-            q.put("question_text", "Can you explain the architectural design patterns and best practices you use when building production microservices with " + techStack + "?");
-            q.put("focus_area", "Architecture & Design Patterns");
+            
+            switch (questionNumber) {
+                case 1:
+                    q.put("topic", firstTech + " Core Architecture");
+                    q.put("question_text", "In " + firstTech + ", how do you design components for high cohesion and low coupling? Can you walk through a production code example?");
+                    q.put("focus_area", "Architecture & Clean Code");
+                    break;
+                case 2:
+                    q.put("topic", "Database Optimization & SQL Performance");
+                    q.put("question_text", "When working with databases in a " + role + " application, how do you identify slow queries and design composite indices to optimize performance?");
+                    q.put("focus_area", "Database Indexing & Query Tuning");
+                    break;
+                case 3:
+                    q.put("topic", "API Security & Authentication");
+                    q.put("question_text", "How do you secure REST API endpoints in " + firstTech + " against SQL injection, XSS, and unauthorized token tampering?");
+                    q.put("focus_area", "Security & Authorization");
+                    break;
+                case 4:
+                    q.put("topic", "Concurrency & Thread Safety");
+                    q.put("question_text", "How do you manage concurrent request processing, race conditions, or async tasks in " + firstTech + " under heavy load?");
+                    q.put("focus_area", "Multithreading & Concurrency");
+                    break;
+                default:
+                    q.put("topic", "System Resilience & Production Monitoring");
+                    q.put("question_text", "What exception handling, logging, and circuit breaker patterns do you implement in " + firstTech + " to handle third-party service degradation?");
+                    q.put("focus_area", "System Reliability & Fault Tolerance");
+                    break;
+            }
+            
             q.put("difficulty", "Medium");
             fallback.put("status", "success_fallback");
             fallback.put("question", q);

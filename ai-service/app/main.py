@@ -30,6 +30,9 @@ class StartSessionRequest(BaseModel):
     tech_stack: str = Field(..., example="Spring Boot, PostgreSQL, Docker")
     experience_level: str = Field(..., example="Junior")
     max_questions: int = Field(default=5, example=5)
+    question_number: int = Field(default=1, example=1)
+    previous_questions: List[str] = []
+    evaluations: List[Dict[str, Any]] = []
 
 class EvaluateAnswerRequest(BaseModel):
     role: str
@@ -58,15 +61,16 @@ def health_check():
 
 @app.post("/api/ai/generate-question")
 def api_generate_question(req: StartSessionRequest):
-    """Generates the initial technical question for a session."""
+    """Generates the technical question for a session."""
     try:
         q_data = generate_next_question(
             role=req.role,
             tech_stack=req.tech_stack,
             experience_level=req.experience_level,
-            question_number=1,
+            question_number=req.question_number,
             max_questions=req.max_questions,
-            evaluations=[]
+            evaluations=req.evaluations,
+            previous_questions_list=req.previous_questions
         )
         return {"status": "success", "question": q_data}
     except Exception as e:
