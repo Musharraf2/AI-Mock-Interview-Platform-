@@ -29,3 +29,9 @@ frontend/*.local
 *.swp
 *.swo
 *.iml
+
+# Personal / Local Docs & Scratch Scripts
+docs/
+scratch/
+*.pdf
+
