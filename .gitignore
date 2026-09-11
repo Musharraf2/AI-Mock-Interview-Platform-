@@ -1,0 +1,31 @@
+# Operating System
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Python / AI Service
+ai-service/__pycache__/
+ai-service/*/__pycache__/
+ai-service/*/*/__pycache__/
+ai-service/.venv/
+ai-service/venv/
+ai-service/.env
+
+# Java / Spring Boot Backend
+backend/target/
+backend/.mvn/
+backend/*.log
+backend/out/
+
+# Node.js / React Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+
+# IDEs & Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*.iml
