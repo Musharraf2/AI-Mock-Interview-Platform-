@@ -82,7 +82,51 @@ public class AIServiceClient {
         }
     }
 
+    private boolean isCopiedOrInvalidAnswer(String questionText, String candidateAnswer) {
+        if (candidateAnswer == null || candidateAnswer.trim().length() < 12) {
+            return true;
+        }
+        String qClean = questionText.toLowerCase().replaceAll("[^a-z0-9 ]", "");
+        String aClean = candidateAnswer.toLowerCase().replaceAll("[^a-z0-9 ]", "");
+
+        if (aClean.equals(qClean) || aClean.contains("i dont know") || aClean.contains("idk") || aClean.equals("test")) {
+            return true;
+        }
+
+        String[] aWords = aClean.split("\\s+");
+        String[] qWords = qClean.split("\\s+");
+        java.util.Set<String> qWordSet = new java.util.HashSet<>(java.util.Arrays.asList(qWords));
+
+        int overlap = 0;
+        for (String w : aWords) {
+            if (qWordSet.contains(w)) {
+                overlap++;
+            }
+        }
+
+        double ratio = (double) overlap / aWords.length;
+        return ratio > 0.70 && aWords.length <= qWords.length + 4;
+    }
+
     public Map<String, Object> evaluateAnswer(String role, String techStack, String experienceLevel, int questionNumber, String topic, String questionText, String candidateAnswer) {
+        if (isCopiedOrInvalidAnswer(questionText, candidateAnswer)) {
+            Map<String, Object> fallback = new HashMap<>();
+            Map<String, Object> eval = new HashMap<>();
+            eval.put("question_number", questionNumber);
+            eval.put("question_text", questionText);
+            eval.put("technical_score", 0);
+            eval.put("communication_score", 0);
+            eval.put("problem_solving_score", 0);
+            eval.put("overall_question_score", 0.0);
+            eval.put("feedback_summary", "No actual technical answer provided. You pasted the question text back or submitted an incomplete response.");
+            eval.put("strengths", List.of());
+            eval.put("improvements", List.of("Provide a concrete technical answer instead of repeating the question text"));
+            eval.put("needs_followup", false);
+            fallback.put("status", "success");
+            fallback.put("evaluation", eval);
+            return fallback;
+        }
+
         String url = aiServiceUrl + "/api/ai/evaluate";
 
         Map<String, Object> body = new HashMap<>();
@@ -106,13 +150,13 @@ public class AIServiceClient {
             Map<String, Object> eval = new HashMap<>();
             eval.put("question_number", questionNumber);
             eval.put("question_text", questionText);
-            eval.put("technical_score", 8);
-            eval.put("communication_score", 8);
-            eval.put("problem_solving_score", 8);
-            eval.put("overall_question_score", 8.0);
-            eval.put("feedback_summary", "Candidate answered clearly with good technical accuracy.");
-            eval.put("strengths", List.of("Clear explanation", "Relevant technical concepts mentioned"));
-            eval.put("improvements", List.of("Include edge-case handling considerations"));
+            eval.put("technical_score", 6);
+            eval.put("communication_score", 6);
+            eval.put("problem_solving_score", 6);
+            eval.put("overall_question_score", 6.0);
+            eval.put("feedback_summary", "Response submitted and analyzed. Elaborate further on production trade-offs.");
+            eval.put("strengths", List.of("Answer submitted for evaluation"));
+            eval.put("improvements", List.of("Provide deeper technical design details and code patterns"));
             eval.put("needs_followup", false);
             fallback.put("status", "success_fallback");
             fallback.put("evaluation", eval);
