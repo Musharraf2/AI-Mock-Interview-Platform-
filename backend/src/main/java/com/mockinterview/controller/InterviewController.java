@@ -51,4 +51,12 @@ public class InterviewController {
     public ResponseEntity<Map<String, Object>> getSessionDetails(@PathVariable("id") Long id) {
         return ResponseEntity.ok(interviewService.getSessionDetails(id));
     }
+
+    @PostMapping("/end-session/{id}")
+    public ResponseEntity<com.mockinterview.entity.FinalReport> endSession(
+            Authentication authentication,
+            @PathVariable("id") Long id) {
+        User user = authService.getUserByEmail(authentication.getName());
+        return ResponseEntity.ok(interviewService.endSessionEarly(user.getId(), id));
+    }
 }

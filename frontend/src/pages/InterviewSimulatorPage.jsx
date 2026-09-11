@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { interviewApi } from '../services/api';
-import { Bot, Mic, MicOff, Send, CheckCircle2, AlertCircle, ArrowRight, Award, Sparkles, Volume2 } from 'lucide-react';
+import { Bot, Mic, MicOff, Send, CheckCircle2, AlertCircle, ArrowRight, Award, Sparkles, Volume2, VolumeX, Square, LogOut } from 'lucide-react';
 
 export default function InterviewSimulatorPage({ initialData, onComplete }) {
   const [session, setSession] = useState(initialData?.session || null);
@@ -8,6 +8,7 @@ export default function InterviewSimulatorPage({ initialData, onComplete }) {
   const [candidateAnswer, setCandidateAnswer] = useState('');
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [lastEvaluation, setLastEvaluation] = useState(null);
   const [showEvaluationModal, setShowEvaluationModal] = useState(false);
   const [error, setError] = useState('');
@@ -61,11 +62,38 @@ export default function InterviewSimulatorPage({ initialData, onComplete }) {
 
   const handleTextToSpeech = (text) => {
     if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.0;
-      utterance.pitch = 1.0;
-      window.speechSynthesis.speak(utterance);
+      if (isSpeaking || window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+        setIsSpeaking(false);
+      } else {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        utterance.onend = () => setIsSpeaking(false);
+        utterance.onerror = () => setIsSpeaking(false);
+        window.speechSynthesis.speak(utterance);
+        setIsSpeaking(true);
+      }
+    }
+  };
+
+  const handleEndEarly = async () => {
+    if (window.confirm("End this interview early? We will evaluate your answered questions and generate your scorecard now.")) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      setLoading(true);
+      try {
+        await interviewApi.endSession(session.id);
+        if (onComplete) {
+          onComplete(session.id);
+        }
+      } catch (err) {
+        console.error("Error ending session:", err);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -133,11 +161,21 @@ export default function InterviewSimulatorPage({ initialData, onComplete }) {
           <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Technical Interview Simulation Room</h2>
         </div>
 
-        <div style={{ textAlign: 'right' }}>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>Question Progress</span>
-          <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)' }}>
-            {qNum} of {maxQ}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div style={{ textAlign: 'right' }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>Question Progress</span>
+            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)' }}>
+              {qNum} of {maxQ}
+            </div>
           </div>
+          <button
+            onClick={handleEndEarly}
+            className="btn-secondary"
+            style={{ padding: '10px 16px', fontSize: '0.85rem', color: 'var(--rose)', borderColor: 'rgba(244, 63, 94, 0.3)' }}
+            title="End test early and generate scorecard for answered questions"
+          >
+            <Square size={16} /> End & Get Report
+          </button>
         </div>
       </div>
 
@@ -179,16 +217,23 @@ export default function InterviewSimulatorPage({ initialData, onComplete }) {
               <div>
                 <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Senior AI Interviewer</h3>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-                  LangGraph Agent • Gemini 2.5 Engine
+                  Interactive AI System
                 </span>
               </div>
               <button
                 onClick={() => handleTextToSpeech(currentQuestion.questionText)}
-                className="btn-secondary"
-                style={{ marginLeft: 'auto', padding: '8px 12px', fontSize: '0.8rem' }}
-                title="Read question out loud"
+                className={isSpeaking ? "btn-primary" : "btn-secondary"}
+                style={{
+                  marginLeft: 'auto',
+                  padding: '8px 14px',
+                  fontSize: '0.8rem',
+                  background: isSpeaking ? 'rgba(139, 92, 246, 0.2)' : undefined,
+                  borderColor: isSpeaking ? 'var(--purple)' : undefined
+                }}
+                title={isSpeaking ? "Mute audio" : "Read question out loud"}
               >
-                <Volume2 size={16} /> Read
+                {isSpeaking ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                {isSpeaking ? 'Mute' : 'Read'}
               </button>
             </div>
 

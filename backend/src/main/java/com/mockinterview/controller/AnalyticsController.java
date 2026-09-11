@@ -39,11 +39,20 @@ public class AnalyticsController {
 
         List<Map<String, Object>> sessionTrends = new ArrayList<>();
         for (InterviewSession s : sessions) {
+            Map<String, Object> details = interviewService.getSessionDetails(s.getId());
+            List<?> responses = (List<?>) details.get("responses");
+            int answeredCount = responses != null ? responses.size() : 0;
+
             Map<String, Object> item = new HashMap<>();
             item.put("id", s.getId());
             item.put("role", s.getRole());
             item.put("tech_stack", s.getTechStack());
+            item.put("status", s.getStatus());
+            item.put("max_questions", s.getMaxQuestions());
+            item.put("current_question_number", s.getCurrentQuestionNumber());
+            item.put("answered_count", answeredCount);
             item.put("score", s.getOverallScore() != null ? s.getOverallScore() : 0);
+            item.put("has_report", details.get("final_report") != null);
             item.put("created_at", s.getCreatedAt());
             sessionTrends.add(item);
         }

@@ -177,10 +177,27 @@ public class InterviewSessionService {
         return result;
     }
 
+    @Transactional
+    public FinalReport endSessionEarly(Long userId, Long sessionId) {
+        InterviewSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new RuntimeException("Session not found"));
+
+        session.setStatus("ENDED_EARLY");
+        sessionRepository.save(session);
+
+        return buildAndSaveFinalReport(session);
+    }
+
     private FinalReport buildAndSaveFinalReport(InterviewSession session) {
         List<CandidateResponse> responses = responseRepository.findBySessionId(session.getId());
-        List<Map<String, Object>> evalsList = new ArrayList<>();
+        
+        // Check if report already generated
+        Optional<FinalReport> existingReport = reportRepository.findBySessionId(session.getId());
+        if (existingReport.isPresent()) {
+            return existingReport.get();
+        }
 
+        List<Map<String, Object>> evalsList = new ArrayList<>();
         for (CandidateResponse r : responses) {
             Map<String, Object> m = new HashMap<>();
             m.put("technical_score", r.getTechnicalScore());
@@ -190,14 +207,29 @@ public class InterviewSessionService {
             evalsList.add(m);
         }
 
-        Map<String, Object> aiReportResp = aiServiceClient.generateFinalReport(
-                session.getRole(),
-                session.getTechStack(),
-                session.getExperienceLevel(),
-                evalsList
-        );
-
-        Map<String, Object> repMap = (Map<String, Object>) aiReportResp.get("report");
+        Map<String, Object> repMap;
+        if (responses.isEmpty()) {
+            repMap = new HashMap<>();
+            repMap.put("overall_score", 0);
+            repMap.put("technical_score", 0);
+            repMap.put("communication_score", 0);
+            repMap.put("problem_solving_score", 0);
+            repMap.put("hiring_recommendation", "Incomplete");
+            repMap.put("summary_verdict", "Session ended early before any candidate responses were submitted.");
+            repMap.put("top_strengths", List.of("Session initialized"));
+            repMap.put("areas_to_improve", List.of("Complete at least 1 technical question"));
+            repMap.put("actionable_roadmap", List.of(
+                    Map.of("week", 1, "topic", "Mock Practice", "task", "Complete a full 5-question mock interview session")
+            ));
+        } else {
+            Map<String, Object> aiReportResp = aiServiceClient.generateFinalReport(
+                    session.getRole(),
+                    session.getTechStack(),
+                    session.getExperienceLevel(),
+                    evalsList
+            );
+            repMap = (Map<String, Object>) aiReportResp.get("report");
+        }
 
         FinalReport report = new FinalReport();
         report.setSessionId(session.getId());

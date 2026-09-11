@@ -112,8 +112,8 @@ export default function DashboardPage({ onStartNew, onViewReport }) {
               <ShieldCheck size={20} color="#f472b6" />
             </div>
           </div>
-          <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>LangGraph + Gemini</div>
-          <span style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}>Stateful Multi-Agent</span>
+          <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>Multi-Agent System</div>
+          <span style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}>Adaptive LLM Pipeline</span>
         </div>
       </div>
 
@@ -137,39 +137,56 @@ export default function DashboardPage({ onStartNew, onViewReport }) {
                 <tr style={{ borderBottom: '1px solid var(--border-glass)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                   <th style={{ padding: '12px 16px' }}>Session Role</th>
                   <th style={{ padding: '12px 16px' }}>Tech Stack</th>
-                  <th style={{ padding: '12px 16px' }}>Status</th>
+                  <th style={{ padding: '12px 16px' }}>Status & Questions</th>
                   <th style={{ padding: '12px 16px' }}>Score</th>
                   <th style={{ padding: '12px 16px' }}>Date</th>
                   <th style={{ padding: '12px 16px', textAlign: 'right' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {session_history.map((s) => (
-                  <tr key={s.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', transition: 'background 0.2s' }}>
-                    <td style={{ padding: '16px', fontWeight: 600 }}>{s.role}</td>
-                    <td style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>{s.tech_stack}</td>
-                    <td style={{ padding: '16px' }}>
-                      <span className={`badge-pill ${s.score > 0 ? 'badge-emerald' : 'badge-indigo'}`}>
-                        {s.score > 0 ? 'Completed' : 'In Progress'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '16px', fontWeight: 700, color: s.score >= 80 ? '#34d399' : '#818cf8' }}>
-                      {s.score ? `${s.score}/100` : 'Pending'}
-                    </td>
-                    <td style={{ padding: '16px', color: 'var(--text-dim)', fontSize: '0.85rem' }}>
-                      {new Date(s.created_at).toLocaleDateString()}
-                    </td>
-                    <td style={{ padding: '16px', textAlign: 'right' }}>
-                      <button 
-                        onClick={() => onViewReport(s.id)}
-                        className="btn-secondary" 
-                        style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-                      >
-                        View Report <ArrowRight size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {session_history.map((s) => {
+                  const isCompleted = s.status === 'COMPLETED';
+                  const isEndedEarly = s.status === 'ENDED_EARLY';
+                  const maxQ = s.max_questions || 5;
+                  const answered = s.answered_count || (isCompleted ? maxQ : 0);
+
+                  return (
+                    <tr key={s.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', transition: 'background 0.2s' }}>
+                      <td style={{ padding: '16px', fontWeight: 600 }}>{s.role}</td>
+                      <td style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>{s.tech_stack}</td>
+                      <td style={{ padding: '16px' }}>
+                        {isCompleted ? (
+                          <span className="badge-pill badge-emerald">
+                            Completed ({answered}/{maxQ} Given)
+                          </span>
+                        ) : isEndedEarly ? (
+                          <span className="badge-pill badge-purple">
+                            Ended Early ({answered}/{maxQ} Given)
+                          </span>
+                        ) : (
+                          <span className="badge-pill badge-indigo">
+                            In Progress ({answered}/{maxQ} Given)
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: '16px', fontWeight: 700, color: s.score >= 75 ? '#34d399' : '#818cf8' }}>
+                        {s.has_report || isCompleted || isEndedEarly ? `${s.score || 0}/100` : `${answered}/${maxQ} Given`}
+                      </td>
+                      <td style={{ padding: '16px', color: 'var(--text-dim)', fontSize: '0.85rem' }}>
+                        {new Date(s.created_at).toLocaleDateString()}
+                      </td>
+                      <td style={{ padding: '16px', textAlign: 'right' }}>
+                        <button 
+                          onClick={() => onViewReport(s.id)}
+                          className="btn-secondary" 
+                          style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                        >
+                          View Report <ArrowRight size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

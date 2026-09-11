@@ -29,6 +29,7 @@ export const authApi = {
 export const interviewApi = {
   startSession: (sessionParams) => api.post('/interview/start', sessionParams),
   submitAnswer: (answerParams) => api.post('/interview/submit-answer', answerParams),
+  endSession: (sessionId) => api.post(`/interview/end-session/${sessionId}`),
   getMySessions: () => api.get('/interview/my-sessions'),
   getSessionDetails: (sessionId) => api.get(`/interview/session/${sessionId}`),
 };

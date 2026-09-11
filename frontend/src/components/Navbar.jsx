@@ -39,9 +39,6 @@ export default function Navbar({ activeTab, setActiveTab }) {
           <span style={{ fontSize: '1.25rem', fontWeight: 800, background: 'linear-gradient(90deg, #fff, #94a3b8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
             IntervAI
           </span>
-          <span className="badge-pill badge-indigo" style={{ marginLeft: '8px', fontSize: '0.65rem' }}>
-            LangGraph + Gemini
-          </span>
         </div>
       </div>
 

@@ -26,6 +26,18 @@ const ROLE_PRESETS = [
     techStack: "Docker, Kubernetes, AWS, Terraform, CI/CD, Linux",
     icon: "☁️",
     badge: "Infrastructure"
+  },
+  {
+    role: "Data Engineer",
+    techStack: "Python, PySpark, SQL, Apache Airflow, Snowflake, ETL",
+    icon: "📊",
+    badge: "Big Data"
+  },
+  {
+    role: "AI & ML Engineer",
+    techStack: "Python, PyTorch, TensorFlow, LangChain, LLMs, Vector DBs",
+    icon: "🧠",
+    badge: "Cutting Edge"
   }
 ];
 
@@ -102,10 +114,14 @@ export default function SessionSetupPage({ onSessionStarted }) {
         </div>
       )}
 
-      {/* Preset Role Selector Grid */}
-      <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '16px', color: 'var(--text-muted)' }}>
-        Quick Role Presets
-      </h3>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+          Select a Quick Preset (or type any custom role below)
+        </h3>
+        <span className="badge-pill badge-indigo" style={{ fontSize: '0.7rem' }}>
+          Supports Any Custom Role & Stack
+        </span>
+      </div>
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
