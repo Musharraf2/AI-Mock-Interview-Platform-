@@ -121,7 +121,9 @@ def generate_next_question(
             "question_text": fallback_item["question_text"].replace("{tech_stack}", main_tech).replace("{role}", role),
             "focus_area": fallback_item["focus_area"],
             "difficulty": "Medium",
-            "fallback": True,
+            "fallback": True
+        }
+
 BATCH_QUESTION_PROMPT = """You are an expert Senior Technical Interviewer conducting a mock technical interview.
 Target Role: {role}
 Tech Stack / Topics: {tech_stack}
@@ -182,9 +184,12 @@ def generate_batch_questions(
         
     questions = []
     main_tech = tech_stack.split(',')[0].strip()
+    pool = list(FALLBACK_TOPICS)
+    import random
+    random.shuffle(pool)
+    
     for i in range(1, max_questions + 1):
-        topic_idx = (i - 1) % len(FALLBACK_TOPICS)
-        fallback_item = FALLBACK_TOPICS[topic_idx]
+        fallback_item = pool[(i - 1) % len(pool)]
         questions.append({
             "question_number": i,
             "topic": fallback_item["topic"].replace("{tech_stack}", main_tech),
@@ -194,4 +199,5 @@ def generate_batch_questions(
             "fallback": True
         })
     return questions
+
 
