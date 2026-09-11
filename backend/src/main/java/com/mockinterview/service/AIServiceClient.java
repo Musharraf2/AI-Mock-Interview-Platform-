@@ -109,6 +109,13 @@ public class AIServiceClient {
     }
 
     public Map<String, Object> evaluateAnswer(String role, String techStack, String experienceLevel, int questionNumber, String topic, String questionText, String candidateAnswer) {
+        String firstTech = techStack.split(",")[0].trim();
+        String idealAns = "An ideal response for '" + questionText + "' should define the core principles of " + topic + ", explain concrete production architecture trade-offs, and address error handling and scalability.";
+        String inDepthExpl = "### 📘 In-Depth Technical Deep Dive: " + topic + "\n\n" +
+                "1. **Core Architectural Concept**:\nTo answer '" + questionText + "' at a senior level, begin with a clear definition and explain why this design pattern or paradigm is used in " + firstTech + ".\n\n" +
+                "2. **Production Best Practices**:\n- Use clean component separation and explicit interfaces.\n- Ensure thread safety, connection pooling, and proper resource cleanup under load.\n\n" +
+                "3. **Edge Case Handling & Performance**:\nAlways address fault isolation, retry policies, and database transaction boundaries.";
+
         if (isCopiedOrInvalidAnswer(questionText, candidateAnswer)) {
             Map<String, Object> fallback = new HashMap<>();
             Map<String, Object> eval = new HashMap<>();
@@ -119,6 +126,8 @@ public class AIServiceClient {
             eval.put("problem_solving_score", 0);
             eval.put("overall_question_score", 0.0);
             eval.put("feedback_summary", "No actual technical answer provided. You pasted the question text back or submitted an incomplete response.");
+            eval.put("ideal_answer", idealAns);
+            eval.put("in_depth_explanation", inDepthExpl);
             eval.put("strengths", List.of());
             eval.put("improvements", List.of("Provide a concrete technical answer instead of repeating the question text"));
             eval.put("needs_followup", false);
@@ -154,7 +163,9 @@ public class AIServiceClient {
             eval.put("communication_score", 6);
             eval.put("problem_solving_score", 6);
             eval.put("overall_question_score", 6.0);
-            eval.put("feedback_summary", "Response submitted and analyzed. Elaborate further on production trade-offs.");
+            eval.put("feedback_summary", "Response submitted and analyzed. Review the reference solution and expanded deep-dive explanation below.");
+            eval.put("ideal_answer", idealAns);
+            eval.put("in_depth_explanation", inDepthExpl);
             eval.put("strengths", List.of("Answer submitted for evaluation"));
             eval.put("improvements", List.of("Provide deeper technical design details and code patterns"));
             eval.put("needs_followup", false);

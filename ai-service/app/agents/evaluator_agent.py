@@ -19,7 +19,9 @@ CRITICAL RULE ON COPY-PASTE & INVALID ANSWERS:
   Set ALL scores (technical_score, communication_score, problem_solving_score, overall_question_score) to EXACTLY 0.
   Set strengths to [] (empty array).
   Set improvements to ["Provide a concrete technical explanation instead of repeating the question"].
-  Set feedback_summary to "No actual technical answer provided. The candidate pasted the question text back or submitted an empty response."
+  Set feedback_summary to "No actual technical answer provided. You pasted the question text back or submitted an incomplete response."
+  Set ideal_answer to provide the exact reference model solution for this question.
+  Set in_depth_explanation to provide a thorough, expanded technical deep-dive explaining the concept step-by-step.
 
 Otherwise, evaluate the candidate's technical response constructively and accurately:
 1. Technical Accuracy (0-10)
@@ -27,7 +29,8 @@ Otherwise, evaluate the candidate's technical response constructively and accura
 3. Problem Solving & Depth (0-10)
 4. Key technical strengths shown
 5. Missing details, edge cases, or errors
-6. Decision: Does this answer need a probe/follow-up question? (True/False)
+6. Provide the IDEAL REFERENCE ANSWER (ideal_answer): A high-caliber 10/10 model response to this question.
+7. Provide an IN-DEPTH EXPANDED EXPLANATION (in_depth_explanation): A comprehensive, deep-dive explanation with architectural principles, code patterns, and production trade-offs for candidates needing deep clarity.
 
 Reply ONLY with a raw JSON object matching this structure (no markdown fences, no extra text):
 {{
@@ -40,6 +43,8 @@ Reply ONLY with a raw JSON object matching this structure (no markdown fences, n
   "strengths": ["Clear explanation of core concepts", "Mentioned production trade-offs"],
   "improvements": ["Did not address edge case handling"],
   "feedback_summary": "Solid explanation demonstrated. Elaborate on edge case handling to improve.",
+  "ideal_answer": "<The 10/10 ideal reference answer to this question>",
+  "in_depth_explanation": "<A detailed, expanded technical deep dive explaining the concept step-by-step with code patterns and production trade-offs>",
   "needs_followup": false,
   "followup_reason": "Candidate covered main technical points."
 }}
@@ -79,6 +84,10 @@ def evaluate_answer(
     question_text: str,
     candidate_response: str
 ) -> Dict[str, Any]:
+    ideal_fallback = f"An ideal answer for '{question_text}' should define the core principles of {topic}, explain architectural trade-offs, describe concrete design patterns, and address concurrency/performance considerations."
+    
+    in_depth_fallback = f"### 📘 Deep Dive: {topic}\n\n1. **Core Architectural Concept**:\nTo answer '{question_text}' at a senior level, begin by establishing key definitions and core responsibilities.\n\n2. **Production Code & Design Patterns**:\nUse clear separation of concerns, explicit component interfaces, and clean dependency injection or event-driven models.\n\n3. **Edge Cases & Scalability**:\nAddress transaction isolation levels, connection pooling, cache invalidation, and failure isolation under heavy concurrent load."
+
     # Pre-validation check for copy-paste or empty answers
     if is_copied_or_invalid_answer(question_text, candidate_response):
         return {
@@ -91,6 +100,8 @@ def evaluate_answer(
             "strengths": [],
             "improvements": ["Provide an actual technical explanation instead of repeating the question text"],
             "feedback_summary": "No actual technical answer provided. You pasted the question text back or submitted an incomplete response.",
+            "ideal_answer": ideal_fallback,
+            "in_depth_explanation": in_depth_fallback,
             "needs_followup": False,
             "followup_reason": "No valid response to evaluate."
         }
@@ -118,9 +129,12 @@ def evaluate_answer(
         content = re.sub(r"\s*```$", "", content)
         
         parsed = json.loads(content)
+        if "ideal_answer" not in parsed:
+            parsed["ideal_answer"] = ideal_fallback
+        if "in_depth_explanation" not in parsed:
+            parsed["in_depth_explanation"] = in_depth_fallback
         return parsed
     except Exception as e:
-        # Constructive fallback for genuine answers if LLM API is unreachable
         return {
             "question_number": question_number,
             "question_text": question_text,
@@ -130,7 +144,9 @@ def evaluate_answer(
             "overall_question_score": 7.0,
             "strengths": ["Answer submitted and analyzed"],
             "improvements": ["Provide deeper architectural design trade-offs and code examples"],
-            "feedback_summary": "Response recorded. Elaborate further on production trade-offs and error handling.",
+            "feedback_summary": "Response recorded. Review the reference solution and expanded deep-dive explanation below.",
+            "ideal_answer": ideal_fallback,
+            "in_depth_explanation": in_depth_fallback,
             "needs_followup": False,
             "followup_reason": "Standard response evaluated.",
             "fallback": True,

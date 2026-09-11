@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { interviewApi } from '../services/api';
-import { Bot, Mic, MicOff, Send, CheckCircle2, AlertCircle, ArrowRight, Award, Sparkles, Volume2, VolumeX, Square, LogOut } from 'lucide-react';
+import { Bot, Mic, MicOff, Send, CheckCircle2, AlertCircle, ArrowRight, Award, Sparkles, Volume2, VolumeX, Square, LogOut, BookOpen, ChevronDown, ChevronUp, HelpCircle } from 'lucide-react';
 
 export default function InterviewSimulatorPage({ initialData, onComplete }) {
   const [session, setSession] = useState(initialData?.session || null);
@@ -9,6 +9,7 @@ export default function InterviewSimulatorPage({ initialData, onComplete }) {
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [showDeepDive, setShowDeepDive] = useState(false);
   const [lastEvaluation, setLastEvaluation] = useState(null);
   const [showEvaluationModal, setShowEvaluationModal] = useState(false);
   const [error, setError] = useState('');
@@ -327,7 +328,7 @@ export default function InterviewSimulatorPage({ initialData, onComplete }) {
         </div>
       </div>
 
-      {/* Real-time Evaluation Modal / Toast Feedback */}
+      {/* Real-time Evaluation Modal / Feedback */}
       {showEvaluationModal && lastEvaluation && (
         <div style={{
           position: 'fixed',
@@ -335,63 +336,140 @@ export default function InterviewSimulatorPage({ initialData, onComplete }) {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(5, 8, 15, 0.85)',
-          backdropFilter: 'blur(12px)',
+          background: 'rgba(5, 8, 15, 0.88)',
+          backdropFilter: 'blur(14px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 200,
-          padding: '24px'
+          padding: '24px',
+          overflowY: 'auto'
         }}>
-          <div className="glass-panel glass-panel-glow" style={{ maxWidth: '600px', width: '100%', padding: '32px' }}>
+          <div className="glass-panel glass-panel-glow" style={{
+            maxWidth: '750px',
+            width: '100%',
+            padding: '32px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            border: '1px solid rgba(99, 102, 241, 0.3)'
+          }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Award size={28} color="#34d399" />
                 <h3 style={{ fontSize: '1.35rem', fontWeight: 800 }}>Real-Time AI Evaluation</h3>
               </div>
-              <span className="badge-pill badge-emerald" style={{ fontSize: '0.9rem', padding: '6px 14px' }}>
-                Score: {lastEvaluation.overall_question_score || lastEvaluation.technical_score}/10
+              <span className="badge-pill badge-emerald" style={{ fontSize: '1rem', padding: '6px 16px', fontWeight: 800 }}>
+                SCORE: {lastEvaluation.overall_question_score || lastEvaluation.technical_score || 0}/10
               </span>
             </div>
 
             <div style={{ marginBottom: '20px' }}>
-              <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: 1.5 }}>
+              <p style={{ fontSize: '0.95rem', color: 'var(--text-main)', marginBottom: '16px', lineHeight: 1.6, background: 'rgba(255,255,255,0.03)', padding: '14px', borderRadius: '10px', borderLeft: '4px solid var(--primary)' }}>
                 {lastEvaluation.feedback_summary}
               </p>
 
-              {lastEvaluation.strengths && lastEvaluation.strengths.length > 0 && (
-                <div style={{ marginBottom: '14px' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#34d399', display: 'block', marginBottom: '6px' }}>
-                    ✓ Key Strengths Recognized:
-                  </span>
-                  <ul style={{ paddingLeft: '20px', fontSize: '0.85rem', color: 'var(--text-main)' }}>
-                    {lastEvaluation.strengths.map((str, idx) => (
-                      <li key={idx} style={{ marginBottom: '4px' }}>{str}</li>
-                    ))}
-                  </ul>
+              {/* Ideal / Reference Solution */}
+              {lastEvaluation.ideal_answer && (
+                <div style={{
+                  marginBottom: '20px',
+                  background: 'rgba(52, 211, 153, 0.06)',
+                  border: '1px solid rgba(52, 211, 153, 0.25)',
+                  borderRadius: '12px',
+                  padding: '18px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                    <Sparkles size={20} color="#34d399" />
+                    <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#34d399' }}>
+                      Ideal Technical Reference Answer (10/10 Standard)
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '0.92rem', color: 'var(--text-main)', lineHeight: 1.6, whiteSpace: 'pre-wrap', margin: 0 }}>
+                    {lastEvaluation.ideal_answer}
+                  </p>
                 </div>
               )}
 
-              {lastEvaluation.improvements && lastEvaluation.improvements.length > 0 && (
-                <div>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#818cf8', display: 'block', marginBottom: '6px' }}>
-                    💡 Areas to Deepen:
-                  </span>
-                  <ul style={{ paddingLeft: '20px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                    {lastEvaluation.improvements.map((imp, idx) => (
-                      <li key={idx} style={{ marginBottom: '4px' }}>{imp}</li>
-                    ))}
-                  </ul>
+              {/* Strengths & Improvements */}
+              <div style={{ display: 'grid', gridTemplateColumns: lastEvaluation.strengths?.length && lastEvaluation.improvements?.length ? '1fr 1fr' : '1fr', gap: '16px', marginBottom: '20px' }}>
+                {lastEvaluation.strengths && lastEvaluation.strengths.length > 0 && (
+                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#34d399', display: 'block', marginBottom: '8px' }}>
+                      ✓ Key Strengths:
+                    </span>
+                    <ul style={{ paddingLeft: '18px', fontSize: '0.85rem', color: 'var(--text-main)', margin: 0 }}>
+                      {lastEvaluation.strengths.map((str, idx) => (
+                        <li key={idx} style={{ marginBottom: '4px' }}>{str}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {lastEvaluation.improvements && lastEvaluation.improvements.length > 0 && (
+                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#818cf8', display: 'block', marginBottom: '8px' }}>
+                      💡 Areas to Deepen:
+                    </span>
+                    <ul style={{ paddingLeft: '18px', fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
+                      {lastEvaluation.improvements.map((imp, idx) => (
+                        <li key={idx} style={{ marginBottom: '4px' }}>{imp}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              {/* Deep Dive / In-Depth Explanation Expandable Option */}
+              {lastEvaluation.in_depth_explanation && (
+                <div style={{ marginBottom: '20px' }}>
+                  <button
+                    onClick={() => setShowDeepDive(!showDeepDive)}
+                    className="btn-secondary"
+                    style={{
+                      width: '100%',
+                      justify: 'space-between',
+                      padding: '12px 18px',
+                      background: 'rgba(99, 102, 241, 0.1)',
+                      borderColor: 'rgba(99, 102, 241, 0.3)',
+                      color: '#a5b4fc'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 }}>
+                      <BookOpen size={18} color="#818cf8" /> Explain In-Depth (Deep Dive)
+                    </div>
+                    {showDeepDive ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                  </button>
+
+                  {showDeepDive && (
+                    <div style={{
+                      marginTop: '12px',
+                      padding: '20px',
+                      background: 'rgba(15, 23, 42, 0.8)',
+                      border: '1px solid rgba(129, 140, 248, 0.3)',
+                      borderRadius: '12px',
+                      fontSize: '0.9rem',
+                      lineHeight: 1.65,
+                      color: 'var(--text-main)',
+                      whiteSpace: 'pre-wrap'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', color: '#818cf8', fontWeight: 800 }}>
+                        <HelpCircle size={18} /> Detailed Concept Breakdown & Best Practices
+                      </div>
+                      {lastEvaluation.in_depth_explanation}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
             <button
-              onClick={() => setShowEvaluationModal(false)}
+              onClick={() => {
+                setShowEvaluationModal(false);
+                setShowDeepDive(false);
+              }}
               className="btn-primary"
-              style={{ width: '100%', justifyContent: 'center' }}
+              style={{ width: '100%', justifyContent: 'center', padding: '14px' }}
             >
-              Continue to Next Phase <ArrowRight size={18} />
+              Continue to Next Question <ArrowRight size={18} />
             </button>
           </div>
         </div>
