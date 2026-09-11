@@ -215,21 +215,38 @@ public class InterviewSessionService {
     private FinalReport buildAndSaveFinalReport(InterviewSession session) {
         List<CandidateResponse> responses = responseRepository.findBySessionId(session.getId());
         
-        // Check if report already generated
         Optional<FinalReport> existingReport = reportRepository.findBySessionId(session.getId());
         if (existingReport.isPresent()) {
             return existingReport.get();
         }
 
+        double sumTech = 0, sumComm = 0, sumProb = 0;
+        int count = responses.size();
+
         List<Map<String, Object>> evalsList = new ArrayList<>();
         for (CandidateResponse r : responses) {
+            int t = r.getTechnicalScore() != null ? r.getTechnicalScore() : 0;
+            int c = r.getCommunicationScore() != null ? r.getCommunicationScore() : 0;
+            int p = r.getProblemSolvingScore() != null ? r.getProblemSolvingScore() : 0;
+            
+            sumTech += t;
+            sumComm += c;
+            sumProb += p;
+
             Map<String, Object> m = new HashMap<>();
-            m.put("technical_score", r.getTechnicalScore());
-            m.put("communication_score", r.getCommunicationScore());
-            m.put("problem_solving_score", r.getProblemSolvingScore());
+            m.put("technical_score", t);
+            m.put("communication_score", c);
+            m.put("problem_solving_score", p);
             m.put("feedback_summary", r.getFeedbackSummary());
             evalsList.add(m);
         }
+
+        int calcTech = count > 0 ? (int) Math.round((sumTech / count) * 10.0) : 0;
+        int calcComm = count > 0 ? (int) Math.round((sumComm / count) * 10.0) : 0;
+        int calcProb = count > 0 ? (int) Math.round((sumProb / count) * 10.0) : 0;
+        int calcOverall = count > 0 ? (int) Math.round((calcTech + calcComm + calcProb) / 3.0) : 0;
+
+        String calcRec = calcOverall == 0 || calcOverall < 40 ? "No Hire / Reject" : (calcOverall < 70 ? "Weak Hire" : "Hire");
 
         Map<String, Object> repMap;
         if (responses.isEmpty()) {
@@ -253,15 +270,32 @@ public class InterviewSessionService {
                     evalsList
             );
             repMap = (Map<String, Object>) aiReportResp.get("report");
+            
+            // Enforce mathematical score bounds
+            if (calcOverall == 0) {
+                repMap.put("overall_score", 0);
+                repMap.put("technical_score", 0);
+                repMap.put("communication_score", 0);
+                repMap.put("problem_solving_score", 0);
+                repMap.put("hiring_recommendation", "No Hire / Reject");
+                repMap.put("summary_verdict", "Candidate did not provide valid technical answers to the interview questions.");
+                repMap.put("top_strengths", List.of("Attempted mock interview session"));
+            } else {
+                repMap.put("overall_score", calcOverall);
+                repMap.put("technical_score", calcTech);
+                repMap.put("communication_score", calcComm);
+                repMap.put("problem_solving_score", calcProb);
+                repMap.put("hiring_recommendation", calcRec);
+            }
         }
 
         FinalReport report = new FinalReport();
         report.setSessionId(session.getId());
-        report.setOverallScore((Integer) repMap.getOrDefault("overall_score", 80));
-        report.setTechnicalScore((Integer) repMap.getOrDefault("technical_score", 80));
-        report.setCommunicationScore((Integer) repMap.getOrDefault("communication_score", 80));
-        report.setProblemSolvingScore((Integer) repMap.getOrDefault("problem_solving_score", 80));
-        report.setHiringRecommendation((String) repMap.getOrDefault("hiring_recommendation", "Hire"));
+        report.setOverallScore((Integer) repMap.getOrDefault("overall_score", 0));
+        report.setTechnicalScore((Integer) repMap.getOrDefault("technical_score", 0));
+        report.setCommunicationScore((Integer) repMap.getOrDefault("communication_score", 0));
+        report.setProblemSolvingScore((Integer) repMap.getOrDefault("problem_solving_score", 0));
+        report.setHiringRecommendation((String) repMap.getOrDefault("hiring_recommendation", "No Hire / Reject"));
         report.setSummaryVerdict((String) repMap.get("summary_verdict"));
 
         try {

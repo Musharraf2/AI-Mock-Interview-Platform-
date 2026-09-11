@@ -192,39 +192,28 @@ public class AIServiceClient {
         try {
             return restTemplate.postForObject(url, request, Map.class);
         } catch (Exception e) {
-            String firstTech = techStack.split(",")[0].trim();
+            String firstTech = techStack != null ? techStack.split(",")[0].trim() : "Software";
             Map<String, Object> fallback = new HashMap<>();
             List<Map<String, Object>> qList = new java.util.ArrayList<>();
+
+            List<Map<String, String>> pool = List.of(
+                    Map.of("topic", firstTech + " Core Architecture", "text", "In " + firstTech + ", how do you design components for high cohesion and low coupling? Can you walk through a production design pattern example?", "focus", "Clean Architecture"),
+                    Map.of("topic", "Database Optimization & SQL Performance", "text", "When working with databases in a " + role + " application, how do you identify slow queries and design composite indices to optimize performance?", "focus", "Database Indexing & Query Tuning"),
+                    Map.of("topic", "API Security & Authentication", "text", "How do you secure REST API endpoints in " + firstTech + " against SQL injection, XSS, and unauthorized token tampering?", "focus", "Security & Authorization"),
+                    Map.of("topic", "Concurrency & Thread Safety", "text", "How do you manage concurrent request processing, race conditions, or async tasks in " + firstTech + " under heavy load?", "focus", "Multithreading & Concurrency"),
+                    Map.of("topic", "Caching & Memory Management", "text", "What caching strategies (such as Redis or Cache-Aside) do you implement in " + firstTech + " to minimize database overhead?", "focus", "System Performance & Caching"),
+                    Map.of("topic", "System Resilience & Circuit Breakers", "text", "What exception handling, logging, and circuit breaker patterns do you implement in " + firstTech + " to handle third-party service degradation?", "focus", "System Reliability & Fault Tolerance")
+            );
+
+            java.util.Collections.shuffle(pool, new java.util.Random(System.currentTimeMillis()));
+
             for (int i = 1; i <= maxQuestions; i++) {
+                Map<String, String> tItem = pool.get((i - 1) % pool.size());
                 Map<String, Object> q = new HashMap<>();
                 q.put("question_number", i);
-                switch (i) {
-                    case 1:
-                        q.put("topic", firstTech + " Core Architecture");
-                        q.put("question_text", "In " + firstTech + ", how do you design components for high cohesion and low coupling? Can you walk through a production code example?");
-                        q.put("focus_area", "Architecture & Clean Code");
-                        break;
-                    case 2:
-                        q.put("topic", "Database Optimization & SQL Performance");
-                        q.put("question_text", "When working with databases in a " + role + " application, how do you identify slow queries and design composite indices to optimize performance?");
-                        q.put("focus_area", "Database Indexing & Query Tuning");
-                        break;
-                    case 3:
-                        q.put("topic", "API Security & Authentication");
-                        q.put("question_text", "How do you secure REST API endpoints in " + firstTech + " against SQL injection, XSS, and unauthorized token tampering?");
-                        q.put("focus_area", "Security & Authorization");
-                        break;
-                    case 4:
-                        q.put("topic", "Concurrency & Thread Safety");
-                        q.put("question_text", "How do you manage concurrent request processing, race conditions, or async tasks in " + firstTech + " under heavy load?");
-                        q.put("focus_area", "Multithreading & Concurrency");
-                        break;
-                    default:
-                        q.put("topic", "System Resilience & Production Monitoring");
-                        q.put("question_text", "What exception handling, logging, and circuit breaker patterns do you implement in " + firstTech + " to handle third-party service degradation?");
-                        q.put("focus_area", "System Reliability & Fault Tolerance");
-                        break;
-                }
+                q.put("topic", tItem.get("topic"));
+                q.put("question_text", tItem.get("text"));
+                q.put("focus_area", tItem.get("focus"));
                 q.put("difficulty", "Medium");
                 qList.add(q);
             }
@@ -283,14 +272,37 @@ public class AIServiceClient {
         } catch (Exception e) {
             Map<String, Object> fallback = new HashMap<>();
             Map<String, Object> rep = new HashMap<>();
-            rep.put("overall_score", 80);
-            rep.put("technical_score", 82);
-            rep.put("communication_score", 84);
-            rep.put("problem_solving_score", 78);
-            rep.put("hiring_recommendation", "Hire");
-            rep.put("summary_verdict", "Candidate showed solid technical fundamentals for the target role.");
-            rep.put("top_strengths", List.of("Strong framework understanding", "Clear communication"));
-            rep.put("areas_to_improve", List.of("Concurrency models", "Database indexing strategies"));
+
+            double sumTech = 0, sumComm = 0, sumProb = 0;
+            int count = evaluations != null ? evaluations.size() : 0;
+
+            if (evaluations != null) {
+                for (Map<String, Object> ev : evaluations) {
+                    Number t = (Number) ev.getOrDefault("technical_score", 0);
+                    Number c = (Number) ev.getOrDefault("communication_score", 0);
+                    Number p = (Number) ev.getOrDefault("problem_solving_score", 0);
+                    sumTech += t != null ? t.doubleValue() : 0;
+                    sumComm += c != null ? c.doubleValue() : 0;
+                    sumProb += p != null ? p.doubleValue() : 0;
+                }
+            }
+
+            int avgTech = count > 0 ? (int) Math.round((sumTech / count) * 10.0) : 0;
+            int avgComm = count > 0 ? (int) Math.round((sumComm / count) * 10.0) : 0;
+            int avgProb = count > 0 ? (int) Math.round((sumProb / count) * 10.0) : 0;
+            int overall = count > 0 ? (int) Math.round((avgTech + avgComm + avgProb) / 3.0) : 0;
+
+            String rec = overall == 0 || overall < 40 ? "No Hire / Reject" : (overall < 70 ? "Weak Hire" : "Hire");
+            String verdict = overall == 0 ? "Candidate did not provide valid technical answers to the interview questions." : "Candidate demonstrated foundational knowledge for the target role.";
+
+            rep.put("overall_score", overall);
+            rep.put("technical_score", avgTech);
+            rep.put("communication_score", avgComm);
+            rep.put("problem_solving_score", avgProb);
+            rep.put("hiring_recommendation", rec);
+            rep.put("summary_verdict", verdict);
+            rep.put("top_strengths", overall == 0 ? List.of("Attempted mock interview session") : List.of("Strong framework understanding", "Clear communication"));
+            rep.put("areas_to_improve", List.of("Provide actual technical responses", "Study system design trade-offs"));
             rep.put("actionable_roadmap", List.of(
                     Map.of("week", 1, "topic", "Deep Framework Concepts", "task", "Study internal architecture"),
                     Map.of("week", 2, "topic", "Performance Tuning", "task", "Profile DB queries and memory allocations")
