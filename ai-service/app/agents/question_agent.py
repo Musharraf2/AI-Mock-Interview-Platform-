@@ -30,13 +30,13 @@ You MUST reply ONLY with a raw valid JSON object matching this structure (no mar
 
 FALLBACK_TOPICS = [
     {
-        "topic": "Core Fundamentals & Component Architecture",
-        "question_text": "In {tech_stack}, how do you design components for high cohesion and low coupling? Can you walk through a concrete production example?",
+        "topic": "Core Fundamentals & Modular Design",
+        "question_text": "In {tech_stack}, how do you design components for high cohesion and low coupling? Can you walk through a concrete production architecture example?",
         "focus_area": "Clean Architecture & Design Patterns"
     },
     {
-        "topic": "Database Indexing & Query Performance",
-        "question_text": "When building applications with {tech_stack}, how do you identify slow database queries, and what strategies (such as B-tree indices or composite keys) do you use to optimize query execution?",
+        "topic": "Database Optimization & Performance",
+        "question_text": "When building backend services with {tech_stack}, how do you identify slow database queries and optimize execution performance?",
         "focus_area": "Database Optimization & SQL Tuning"
     },
     {
@@ -45,14 +45,19 @@ FALLBACK_TOPICS = [
         "focus_area": "API Security & Authorization"
     },
     {
-        "topic": "Concurrency, State & Event Handling",
+        "topic": "Concurrency, State & Multithreading",
         "question_text": "How do you handle thread safety, race conditions, or asynchronous task execution in {tech_stack} under high concurrent traffic?",
         "focus_area": "Multithreading & Concurrency"
     },
     {
-        "topic": "Production Monitoring & Failure Resilience",
-        "question_text": "What logging, exception handling, and circuit breaker or retry patterns do you implement in {tech_stack} to ensure system reliability during upstream failures?",
+        "topic": "System Resilience & Fault Tolerance",
+        "question_text": "What logging, exception handling, and circuit breaker patterns do you implement in {tech_stack} to ensure system reliability during upstream failures?",
         "focus_area": "Resilience & Reliability Engineering"
+    },
+    {
+        "topic": "Caching & Memory Management",
+        "question_text": "What caching patterns and memory allocation strategies do you use in {tech_stack} to minimize latency and database load?",
+        "focus_area": "Memory Management & Caching"
     }
 ]
 
