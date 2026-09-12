@@ -60,7 +60,7 @@ def get_llm(temperature: float = 0.7, model_name: str = "grok-beta"):
     falls back seamlessly to Gemini 2.5 Flash API.
     """
     xai_key = os.getenv("XAI_API_KEY", "").strip()
-    gemini_key = os.getenv("GEMINI_API_KEY", "AIzaSyA6ybRB_WmkQF8_8cK45DtVefHvMqlBi1U").strip()
+    gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
 
     if xai_key:
         try:
