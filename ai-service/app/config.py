@@ -9,7 +9,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 load_dotenv()
 
 XAI_API_KEY = os.getenv("XAI_API_KEY", "")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyA6ybRB_WmkQF8_8cK45DtVefHvMqlBi1U")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
 class GrokDirectChat(BaseChatModel):
     xai_api_key: str
@@ -78,4 +78,4 @@ def get_llm(temperature: float = 0.7, model_name: str = "grok-beta"):
             temperature=temperature
         )
 
-    raise ValueError("No valid LLM API keys found.")
+    raise ValueError("No valid LLM API keys found.")
